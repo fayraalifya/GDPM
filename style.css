@@ -78,7 +78,7 @@ input:focus-visible, button:focus-visible, textarea:focus-visible {
 .login-brand-bg {
   position: absolute; inset: 0;
   /* Ganti path di bawah sesuai nama file foto gudang yang Anda simpan di folder ini */
-  background-image: url('assets/MAYORA\ HQ.jpeg');
+  background-image: url('MAYORA\ HQ.jpeg');
   background-size: cover;
   background-position: center;
   opacity: 0.34;
