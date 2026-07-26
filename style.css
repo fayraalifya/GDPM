@@ -58,69 +58,133 @@ input:focus-visible, button:focus-visible, textarea:focus-visible {
 .muted { color: var(--text-muted); }
 
 /* ==========================================================================
-   LAYAR LOGIN
+   LAYAR LOGIN — gaya "GDPM Central Warehouse"
 ========================================================================== */
 .login-screen {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 1fr 1fr;
 }
+
+/* --- Panel kiri: navy + foto gudang Mayora HQ sebagai background --- */
 .login-brand {
   position: relative;
   background: var(--navy);
   overflow: hidden;
   display: flex; align-items: center; justify-content: center;
-  padding: 48px 40px;
+  padding: 48px 44px;
   border-right: 6px solid var(--merah);
 }
-.crate-rows {
+.login-brand-bg {
   position: absolute; inset: 0;
-  display: flex; flex-direction: column; justify-content: space-between;
-  opacity: 0.5;
+  /* Ganti path di bawah sesuai nama file foto gudang yang Anda simpan di folder ini */
+  background-image: url('assets/MAYORA\ HQ.jpeg');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.34;
+  filter: grayscale(15%);
 }
-.crate-rows div {
-  height: 1px;
-  background: repeating-linear-gradient(90deg, rgba(244,239,226,0.14) 0 26px, transparent 26px 34px);
+.login-brand-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(160deg, rgba(15,32,56,0.55) 0%, rgba(15,32,56,0.88) 55%, var(--navy) 100%);
 }
-.login-brand-inner { position: relative; max-width: 400px; }
-.login-stamp {
-  display: inline-block;
-  font-family: var(--font-mono); font-weight: 700; font-size: 11px; letter-spacing: 1.5px;
-  color: var(--emas); border: 1px solid var(--emas);
-  padding: 5px 10px; border-radius: 3px; margin-bottom: 22px;
-  transform: rotate(-1.5deg);
+.login-brand-inner { position: relative; max-width: 400px; z-index: 1; }
+
+.login-brand-logo {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 34px;
 }
-.login-logo {
-  font-family: var(--font-display); font-weight: 800; font-size: 52px; line-height: 0.95;
-  letter-spacing: -0.5px; color: var(--text-on-dark); margin-bottom: 18px;
-}
-.login-logo span { color: var(--merah); }
-.login-tagline {
-  font-size: 15px; line-height: 1.65; color: #C7CCD6; margin: 0 0 26px;
-}
-.login-brand-foot {
-  font-family: var(--font-display); font-weight: 600; font-size: 13px; letter-spacing: 0.4px;
-  color: var(--merah); border-top: 1px solid rgba(244,239,226,0.2); padding-top: 16px;
+.login-brand-logo img { height: 34px; width: auto; display: block; }
+.login-brand-logo .logo-fallback-text { display: none; }
+.login-brand-logo.logo-fallback img { display: none; }
+.login-brand-logo.logo-fallback .logo-fallback-text {
+  display: inline-block; font-family: var(--font-display); font-weight: 800; font-size: 20px;
+  letter-spacing: 0.5px; color: var(--merah);
 }
 
+.login-logo {
+  font-family: var(--font-display); font-weight: 800; font-size: 54px; line-height: 0.9;
+  letter-spacing: -0.5px; color: var(--emas); margin-bottom: 2px;
+}
+.login-logo-sub {
+  font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: 3px;
+  color: var(--emas); margin-bottom: 18px;
+}
+
+.login-divider {
+  width: 46px; height: 3px; background: var(--emas); border-radius: 2px; margin-bottom: 16px;
+}
+.login-divider-center { margin-left: auto; margin-right: auto; }
+
+.login-title-sm {
+  font-family: var(--font-display); font-weight: 700; font-size: 22px;
+  color: var(--text-on-dark); margin: 0 0 14px;
+}
+.login-tagline {
+  font-size: 14.5px; line-height: 1.7; color: #C7CCD6; margin: 0 0 26px;
+}
+
+.login-brand-foot {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 13px; line-height: 1.5; color: #C7CCD6;
+  margin-bottom: 26px;
+}
+.login-brand-foot svg { color: var(--emas); flex-shrink: 0; }
+
+.login-brand-line { height: 1px; background: rgba(244,239,226,0.2); margin-bottom: 16px; }
+.login-brand-company {
+  font-family: var(--font-display); font-weight: 600; font-size: 13px; letter-spacing: 0.4px;
+  color: var(--text-on-dark);
+}
+
+/* --- Panel kanan: form --- */
 .login-form-panel {
   background: var(--kertas);
   display: flex; align-items: center; justify-content: center;
   padding: 40px;
 }
-.login-form-inner { width: 100%; max-width: 380px; }
+.login-form-inner { width: 100%; max-width: 380px; text-align: center; }
+
+.login-form-icon {
+  position: relative;
+  width: 74px; height: 74px; margin: 0 auto 20px;
+  border-radius: 50%; background: var(--emas-soft); border: 1px solid var(--kraft-line);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--navy);
+}
+.login-form-icon-badge {
+  position: absolute; bottom: -2px; right: -2px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--emas); color: var(--white);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; border: 2px solid var(--kertas);
+}
+
+.login-welcome {
+  font-family: var(--font-display); font-weight: 800; font-size: 27px;
+  color: var(--navy); margin: 0 0 4px;
+}
+.login-welcome-sub {
+  font-size: 14px; color: var(--text-muted); margin: 0 0 14px;
+}
+
+.login-form-intro {
+  font-size: 13.5px; line-height: 1.6; color: var(--text-muted); margin: 0 0 26px;
+}
 
 .role-tabs {
   display: grid; grid-template-columns: 1fr 1fr;
   background: var(--kraft); border-radius: 10px; padding: 4px; margin-bottom: 26px;
+  text-align: left;
 }
 .role-tab {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
   font-family: var(--font-display); font-weight: 700; font-size: 13.5px; letter-spacing: 0.4px;
   padding: 11px; border-radius: 8px; color: var(--text-muted);
 }
 .role-tab.is-active { background: var(--navy); color: var(--text-on-dark); }
 
-.login-form-desc { font-size: 13.5px; color: var(--text-muted); line-height: 1.5; margin: 0 0 18px; }
+.login-form-desc { font-size: 13.5px; color: var(--text-muted); line-height: 1.5; margin: 0 0 18px; text-align: left; }
+.login-form { text-align: left; }
 .login-form .field { margin-bottom: 16px; }
 .login-form label {
   display: block; font-family: var(--font-display); font-weight: 600;
@@ -136,6 +200,16 @@ input:focus-visible, button:focus-visible, textarea:focus-visible {
 }
 .btn-login:active { transform: scale(0.98); }
 .btn-login-admin { background: var(--navy); }
+
+.login-form-foot {
+  display: flex; align-items: center; gap: 10px;
+  justify-content: center; margin-top: 26px; padding-top: 20px;
+  border-top: 1px solid var(--kraft-line);
+  font-family: var(--font-display); font-weight: 700; font-size: 12px; letter-spacing: 0.3px;
+  color: var(--emas-deep, var(--text-muted));
+}
+.login-form-foot svg { color: var(--emas); flex-shrink: 0; }
+.login-form-foot-sub { font-family: var(--font-body); font-weight: 400; font-size: 11px; color: var(--text-muted); margin-top: 1px; }
 
 /* ==========================================================================
    HEADER APLIKASI
@@ -184,26 +258,14 @@ input:focus-visible, button:focus-visible, textarea:focus-visible {
 ========================================================================== */
 .app-main { max-width: 800px; margin: 0 auto; padding: 28px 20px 48px; }
 
-/* Panel koneksi file Excel */
+/* Panel status koneksi database (Firebase) */
 .connect-panel { margin-bottom: 20px; }
-.connect-not-supported {
-  background: var(--merah-flag-soft); border: 2px solid var(--merah-flag); color: #6B1A15;
-  padding: 14px 16px; border-radius: 10px; font-size: 13.5px; line-height: 1.5;
+.connect-connecting {
+  background: var(--navy-pale); border: 2px solid var(--navy);
+  color: var(--navy); border-radius: 10px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 10px; font-size: 13.5px;
 }
-.connect-not-supported .mono { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; }
-.connect-disconnected {
-  background: var(--emas-soft); border: 2px solid var(--emas);
-  border-radius: 10px; padding: 16px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-}
-.connect-text { display: flex; flex-direction: column; gap: 2px; color: #7A5613; font-size: 13.5px; flex: 1; min-width: 200px; }
-.connect-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
-.btn-connect {
-  font-family: var(--font-display); font-weight: 700; font-size: 12.5px; letter-spacing: 0.3px;
-  background: var(--navy); color: var(--text-on-dark); padding: 10px 16px; border-radius: 8px;
-  white-space: nowrap;
-}
-.btn-connect-alt { background: var(--white); color: var(--navy); border: 2px solid var(--navy); }
-.connect-needs-permission {
+.connect-error {
   background: var(--merah-flag-soft); border: 2px solid var(--merah-flag); color: #6B1A15;
   border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 13.5px;
 }
@@ -215,14 +277,25 @@ input:focus-visible, button:focus-visible, textarea:focus-visible {
   width: 9px; height: 9px; border-radius: 50%; background: var(--hijau); flex-shrink: 0;
   box-shadow: 0 0 0 0 rgba(39,107,68,0.5); animation: pulseDot 1.8s infinite;
 }
+.dot-live.dot-connecting {
+  background: var(--navy);
+  box-shadow: 0 0 0 0 rgba(15,32,56,0.5);
+  animation: pulseDotNavy 1.2s infinite;
+}
 @keyframes pulseDot {
   0% { box-shadow: 0 0 0 0 rgba(39,107,68,0.5); }
   70% { box-shadow: 0 0 0 7px rgba(39,107,68,0); }
   100% { box-shadow: 0 0 0 0 rgba(39,107,68,0); }
 }
-.btn-change-file {
-  margin-left: auto; font-family: var(--font-display); font-weight: 600; font-size: 12px;
-  text-decoration: underline; color: #16432A;
+@keyframes pulseDotNavy {
+  0% { box-shadow: 0 0 0 0 rgba(15,32,56,0.5); }
+  70% { box-shadow: 0 0 0 7px rgba(15,32,56,0); }
+  100% { box-shadow: 0 0 0 0 rgba(15,32,56,0); }
+}
+.btn-connect {
+  font-family: var(--font-display); font-weight: 700; font-size: 12.5px; letter-spacing: 0.3px;
+  background: var(--navy); color: var(--text-on-dark); padding: 10px 16px; border-radius: 8px;
+  white-space: nowrap;
 }
 @media (prefers-reduced-motion: reduce) { .dot-live { animation: none; } }
 
@@ -594,8 +667,6 @@ input:focus-visible, button:focus-visible, textarea:focus-visible {
 
 /* ==========================================================================
    DASHBOARD VISUAL (admin) — Arus Barang, Barang Terlaris, Lokasi Terpadat
-   Ditambahkan agar sesuai dengan yang dirender oleh renderRingkasan() di
-   script.js (sebelumnya markup-nya belum ada sehingga JS gagal jalan).
 ========================================================================== */
 .vis-grid {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
@@ -740,9 +811,10 @@ input:focus-visible, button:focus-visible, textarea:focus-visible {
 }
 @media (max-width: 860px) {
   .login-screen { grid-template-columns: 1fr; }
-  .login-brand { padding: 34px 28px; min-height: 220px; border-right: none; border-bottom: 6px solid var(--merah); }
-  .login-logo { font-size: 40px; }
-  .login-tagline { display: none; }
+  .login-brand { padding: 34px 28px; min-height: 300px; border-right: none; border-bottom: 6px solid var(--merah); }
+  .login-logo { font-size: 44px; }
+  .login-tagline { font-size: 13.5px; }
+  .login-brand-foot { margin-bottom: 18px; }
 }
 @media (max-width: 640px) {
   .field-grid { grid-template-columns: 1fr; }
@@ -759,14 +831,15 @@ input:focus-visible, button:focus-visible, textarea:focus-visible {
   .modal-history-row span:nth-child(5) { display: none; }
   .period-tabs { flex-direction: column; align-items: stretch; }
   .period-date { width: 100%; }
+  .login-brand-logo { justify-content: center; }
+  .login-title-sm { text-align: center; }
+  .login-tagline { text-align: center; }
+  .login-brand-foot { justify-content: center; text-align: left; }
+  .login-brand-line, .login-brand-company { text-align: center; }
 }
 
 /* ==========================================================================
    VISIBILITAS BERDASARKAN PERAN
-   body.role-operator menyembunyikan semua bagian ".admin-only"
-   (koneksi Excel, ringkasan, katalog, riwayat)
-   body.role-admin menyembunyikan semua bagian ".operator-only"
-   (toggle jenis & form input laporan — admin tidak input data)
 ========================================================================== */
 body.role-operator .admin-only { display: none !important; }
 body.role-admin .operator-only { display: none !important; }

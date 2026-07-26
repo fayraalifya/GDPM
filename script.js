@@ -1,5 +1,5 @@
 /* ==========================================================================
-   UTIL
+   UTILITY FUNCTIONS
 ========================================================================== */
 const BULAN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const BULAN_PANJANG = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -10,11 +10,13 @@ function todayISO() {
   const day = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${m}-${day}`;
 }
+
 function isoOfDate(d) {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${m}-${day}`;
 }
+
 function formatTanggal(iso) {
   if (!iso) return '-';
   const parts = iso.split('-');
@@ -22,16 +24,16 @@ function formatTanggal(iso) {
   const [y, m, d] = parts;
   return `${parseInt(d, 10)} ${BULAN[parseInt(m, 10) - 1]} ${y}`;
 }
-function formatTanggalPanjang(d) {
-  return `${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`;
-}
+
 function formatWaktu(ts) {
   if (!ts) return '-';
   return new Date(ts).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
+
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
+
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -39,19 +41,7 @@ function escapeHtml(str) {
 }
 
 /* ==========================================================================
-   SEARCHABLE SELECT (reusable)
-   PENTING: bagian ini HARUS didefinisikan sebelum dipakai di bagian
-   "SESI & PERAN (login)" di bawah (dropdown nama admin memakainya saat
-   file ini pertama kali dijalankan).
-   CATATAN PERBAIKAN: ditambahkan penjagaan (guard) — jika markup untuk id
-   tertentu belum ada di HTML, fungsi ini tidak lagi melempar error, tapi
-   memberi peringatan di console dan mengembalikan objek "kosong" yang aman
-   dipakai. Ini jaga-jaga saja; pada kondisi normal semua id di bawah sudah
-   tersedia di index.html.
-   CATATAN PERBAIKAN #2: dropdown sebelumnya membatasi daftar hasil hanya
-   60 item pertama (dengan pesan "ketik lebih spesifik untuk hasil lainnya").
-   Sekarang SEMUA data ditampilkan dan bisa dipilih, tanpa batasan jumlah,
-   baik untuk daftar penuh (saat dropdown baru dibuka) maupun hasil pencarian.
+   SEARCHABLE SELECT (reusable component)
 ========================================================================== */
 const openPanels = [];
 
@@ -87,8 +77,6 @@ function setupSearchableSelect({ id, options, getLabel, getSub, onSelect, placeh
       list.innerHTML = '<div class="no-result">Tidak ditemukan</div>';
       return;
     }
-    // Semua hasil ditampilkan (tanpa batasan jumlah) supaya seluruh data
-    // master bisa dipilih langsung dari dropdown.
     filtered.forEach(o => {
       const item = document.createElement('button');
       item.type = 'button';
@@ -136,23 +124,12 @@ function setupSearchableSelect({ id, options, getLabel, getSub, onSelect, placeh
   };
 }
 
-function setupSearchableSelectLazy(id, getOptions, cfg) {
-  return setupSearchableSelect({ id, options: getOptions(), ...cfg });
-}
-
 document.addEventListener('click', () => openPanels.forEach(close => close()));
 
 /* ==========================================================================
-   SESI & PERAN (login)
-   - Operator: cukup ketik nama, langsung ke form input. TIDAK bisa melihat
-     file Excel, laporan, ringkasan, atau katalog barang.
-   - Admin: harus memilih nama terdaftar + password yang cocok. TIDAK bisa
-     input barang masuk/keluar sama sekali — admin hanya melihat laporan
-     (harian/mingguan/bulanan), katalog stok, stok per lokasi, dan bisa
-     melakukan penyesuaian stok / koreksi lokasi.
+   SESSION & ROLE MANAGEMENT (LOGIN)
 ========================================================================== */
 const SESSION_KEY = 'gudang_session_v1';
-const PROFIL_KEY = 'gudang_operator_terakhir';
 
 function getSession() {
   try {
@@ -167,14 +144,16 @@ function getSession() {
     return s;
   } catch (e) { return null; }
 }
+
 function setSession(session) {
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
 }
+
 function clearSession() {
   sessionStorage.removeItem(SESSION_KEY);
 }
 
-/* ---- elemen login ---- */
+/* ---- UI Elements ---- */
 const loginScreen = document.getElementById('login-screen');
 const appScreen = document.getElementById('app-screen');
 const tabOperator = document.getElementById('tab-operator');
@@ -194,10 +173,13 @@ function switchLoginTab(role) {
   formLoginAdmin.hidden = role !== 'admin';
   loginError.hidden = true;
 }
+
 tabOperator.addEventListener('click', () => switchLoginTab('operator'));
 tabAdmin.addEventListener('click', () => switchLoginTab('admin'));
 
-const selAdminNama = setupSearchableSelectLazy('sel-admin-nama', () => ADMIN_ACCOUNTS, {
+const selAdminNama = setupSearchableSelect({
+  id: 'sel-admin-nama',
+  options: ADMIN_ACCOUNTS,
   getLabel: o => o.nama,
   placeholder: 'Pilih nama Anda...',
   onSelect: () => {},
@@ -245,66 +227,23 @@ function enterApp(session) {
     inputOperator.value = session.nama;
   }
 
-  initFileConnection();
+  initFirestoreConnection();
 }
 
 document.getElementById('btn-logout').addEventListener('click', () => {
-  clearInterval(pollTimer);
+  if (unsubscribeLaporan) unsubscribeLaporan();
   clearSession();
   window.location.reload();
 });
 
 /* ==========================================================================
-   PENYIMPANAN: FILE EXCEL BERSAMA (File System Access API)
-   Data laporan TIDAK disimpan di localStorage. Sumber data satu-satunya
-   adalah file .xlsx yang dipilih admin (biasanya di folder Google Drive/
-   OneDrive yang ter-sync ke semua komputer gudang).
-
-   Struktur file Excel dibuat otomatis supaya SELALU rapi tanpa perlu
-   dirapikan manual:
-   - Setiap BULAN mendapat sheet-nya sendiri, misalnya "Juli 2026",
-     "Agustus 2026", dst — dibuat & diurutkan otomatis dari tanggal laporan.
-   - 1 sheet tambahan "Ringkasan Stok" berisi rekap per barang: total
-     masuk, total keluar, stok saat ini, lokasi yang dipakai, dan waktu
-     transaksi terakhir.
-   - Semua sheet punya header baku, lebar kolom pas, dan filter otomatis.
+   FIRESTORE CONNECTION & DATA MANAGEMENT
 ========================================================================== */
-const IDB_NAME = 'gudang-db';
-const IDB_STORE = 'handles';
-const IDB_HANDLE_KEY = 'excelHandle';
 const RINGKASAN_SHEET = 'Ringkasan Stok';
 
-let fileHandle = null;
-let fileConnected = false;
 let currentEntries = [];
-let pollTimer = null;
-
-function idbOpen() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(IDB_NAME, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-async function idbSet(key, val) {
-  const db = await idbOpen();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(IDB_STORE, 'readwrite');
-    tx.objectStore(IDB_STORE).put(val, key);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-async function idbGet(key) {
-  const db = await idbOpen();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(IDB_STORE, 'readonly');
-    const req = tx.objectStore(IDB_STORE).get(key);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
+let unsubscribeLaporan = null;
+let firestoreReady = false;
 
 const MONTH_HEADERS = ['Tanggal', 'Jenis', 'Tipe', 'Nama Operator', 'Kode Barang', 'Nama Barang', 'Supplier', 'Pemilik Barang', 'Lokasi', 'Jumlah', 'Keterangan', 'Waktu Input', 'Waktu Diubah', 'ID'];
 const MONTH_COL_WIDTHS = [12, 9, 13, 18, 14, 34, 22, 14, 10, 9, 28, 22, 22, 14];
@@ -316,13 +255,7 @@ function safeSheetName(name) {
   if (s.length > 31) s = s.slice(0, 31);
   return s || 'Sheet';
 }
-function sheetLabelFromYM(ym) {
-  const [y, m] = ym.split('-');
-  const idx = parseInt(m, 10) - 1;
-  return `${BULAN_PANJANG[idx] || 'Lainnya'} ${y}`;
-}
 
-/** Rekap stok per barang, dipakai bareng oleh sheet Excel & katalog di admin */
 function buildStokList(entries) {
   const map = {};
   entries.forEach(t => {
@@ -354,10 +287,8 @@ function buildStokList(entries) {
   return Object.values(map).sort((a, b) => a.nama.localeCompare(b.nama));
 }
 
-/** Rekap stok per LOKASI: untuk setiap lokasi, barang apa saja & berapa jumlahnya.
- *  Dipakai oleh section "Stok per Lokasi" dan widget "Lokasi Terpadat" di ringkasan. */
 function buildLocationStock(entries) {
-  const map = {}; // lokasi -> { itemKey: {kode, nama, qty} }
+  const map = {};
   entries.forEach(t => {
     if (!t.lokasi) return;
     const key = t.kodeBarang || t.namaBarang;
@@ -417,79 +348,10 @@ function buildStokSheet(entries) {
   return ws;
 }
 
-async function writeToFile(entries) {
-  const wb = XLSX.utils.book_new();
-
-  const groups = {};
-  entries.forEach(t => {
-    const ym = (t.tanggal && /^\d{4}-\d{2}/.test(t.tanggal)) ? t.tanggal.slice(0, 7) : 'lainnya';
-    (groups[ym] = groups[ym] || []).push(t);
-  });
-  let keys = Object.keys(groups).sort();
-  if (keys.length === 0) keys = [todayISO().slice(0, 7)];
-
-  keys.forEach(ym => {
-    const list = (groups[ym] || []).slice().sort((a, b) => {
-      if (a.tanggal !== b.tanggal) return a.tanggal < b.tanggal ? -1 : 1;
-      return a.createdAt - b.createdAt;
-    });
-    const label = ym === 'lainnya' ? 'Lainnya' : sheetLabelFromYM(ym);
-    XLSX.utils.book_append_sheet(wb, buildMonthSheet(list), safeSheetName(label));
-  });
-
-  XLSX.utils.book_append_sheet(wb, buildStokSheet(entries), RINGKASAN_SHEET);
-  // Pindahkan "Ringkasan Stok" jadi sheet paling depan biar langsung terlihat saat file dibuka
-  wb.SheetNames.unshift(wb.SheetNames.pop());
-
-  const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  const writable = await fileHandle.createWritable();
-  await writable.write(out);
-  await writable.close();
-}
-
-function rowsToEntries(rows) {
-  return rows.map(r => ({
-    id: String(r['ID'] || genId()),
-    tanggal: String(r['Tanggal'] || ''),
-    jenis: String(r['Jenis'] || '').toUpperCase().includes('KELUAR') ? 'keluar' : 'masuk',
-    tipe: String(r['Tipe'] || '').toUpperCase().includes('PENYESUAIAN') ? 'penyesuaian' : 'transaksi',
-    operator: String(r['Nama Operator'] || ''),
-    kodeBarang: String(r['Kode Barang'] || ''),
-    namaBarang: String(r['Nama Barang'] || ''),
-    supplier: String(r['Supplier'] || ''),
-    pemilik: String(r['Pemilik Barang'] || ''),
-    lokasi: String(r['Lokasi'] || ''),
-    jumlah: parseInt(r['Jumlah'], 10) || 0,
-    keterangan: String(r['Keterangan'] || ''),
-    createdAt: Date.parse(r['Waktu Input']) || Date.now(),
-    updatedAt: Date.parse(r['Waktu Diubah']) || Date.now(),
-  }));
-}
-
-async function loadFromFile() {
-  if (!fileHandle) return currentEntries;
-  const file = await fileHandle.getFile();
-  if (file.size === 0) { currentEntries = []; return currentEntries; }
-  const buf = await file.arrayBuffer();
-  const wb = XLSX.read(buf, { type: 'array' });
-  let all = [];
-  wb.SheetNames.forEach(name => {
-    if (name === RINGKASAN_SHEET) return;
-    const ws = wb.Sheets[name];
-    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-    all = all.concat(rowsToEntries(rows));
-  });
-  currentEntries = all;
-  return currentEntries;
-}
-
-/* ---- UI status koneksi ---- */
-const elNotSupported = document.getElementById('connect-not-supported');
-const elDisconnected = document.getElementById('connect-disconnected');
-const elNeedsPermission = document.getElementById('connect-needs-permission');
+/* ---- UI Connection Status ---- */
+const elConnecting = document.getElementById('connect-connecting');
 const elConnected = document.getElementById('connect-connected');
-const reconnectFilename = document.getElementById('reconnect-filename');
-const connectedFilename = document.getElementById('connected-filename');
+const elConnectError = document.getElementById('connect-error');
 const operatorNotReady = document.getElementById('operator-not-ready');
 
 function currentRole() {
@@ -497,15 +359,11 @@ function currentRole() {
   return s ? s.role : null;
 }
 
-function setConnectUI(state, filename) {
-  elNotSupported.hidden = state !== 'not-supported';
-  elDisconnected.hidden = state !== 'disconnected';
-  elNeedsPermission.hidden = state !== 'needs-permission';
+function setConnectUI(state) {
+  elConnecting.hidden = state !== 'connecting';
   elConnected.hidden = state !== 'connected';
-  if (filename) {
-    reconnectFilename.textContent = filename;
-    connectedFilename.textContent = filename;
-  }
+  elConnectError.hidden = state !== 'error';
+
   const submitBtn = document.getElementById('btn-submit');
   if (submitBtn) submitBtn.disabled = state !== 'connected';
   const adjSubmitBtn = document.getElementById('btn-adj-submit');
@@ -516,10 +374,6 @@ function setConnectUI(state, filename) {
   } else {
     operatorNotReady.hidden = true;
   }
-
-  if (state === 'connected' && currentRole() === 'admin') {
-    renderAll();
-  }
 }
 
 function renderAll() {
@@ -529,104 +383,71 @@ function renderAll() {
   renderRiwayat();
 }
 
-function startPolling() {
-  clearInterval(pollTimer);
-  pollTimer = setInterval(async () => {
-    if (!fileConnected) return;
-    await loadFromFile();
-    if (currentRole() === 'admin') renderAll();
-  }, 8000);
-}
+function initFirestoreConnection() {
+  setConnectUI('connecting');
 
-async function connectExisting() {
-  try {
-    const [handle] = await window.showOpenFilePicker({
-      types: [{ description: 'Excel', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }],
-      multiple: false,
-    });
-    fileHandle = handle;
-    await idbSet(IDB_HANDLE_KEY, handle);
-    fileConnected = true;
-    await loadFromFile();
-    setConnectUI('connected', handle.name);
-    startPolling();
-    showToast('File Excel berhasil dihubungkan.');
-  } catch (e) {
-    if (e.name !== 'AbortError') showToast('Gagal membuka file: ' + e.message, 'error');
+  function startListening() {
+    const fb = window.gudangFirebase;
+    if (!fb) { setConnectUI('error'); return; }
+
+    if (unsubscribeLaporan) unsubscribeLaporan();
+
+    unsubscribeLaporan = fb.onSnapshot(
+      fb.laporanCol,
+      (snapshot) => {
+        currentEntries = snapshot.docs.map(d => {
+          const data = d.data();
+          return { id: d.id, ...data };
+        });
+        firestoreReady = true;
+        setConnectUI('connected');
+        if (currentRole() === 'admin') renderAll();
+      },
+      (err) => {
+        console.error('Firestore listen error:', err);
+        firestoreReady = false;
+        setConnectUI('error');
+      }
+    );
+  }
+
+  if (window.gudangFirebase) {
+    startListening();
+  } else {
+    window.addEventListener('gudang-firebase-ready', startListening, { once: true });
+    setTimeout(() => { if (!firestoreReady && window.gudangFirebase) startListening(); }, 300);
   }
 }
 
-async function createNewFile() {
-  try {
-    const handle = await window.showSaveFilePicker({
-      suggestedName: 'laporan-gudang.xlsx',
-      types: [{ description: 'Excel', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }],
-    });
-    fileHandle = handle;
-    await idbSet(IDB_HANDLE_KEY, handle);
-    fileConnected = true;
-    currentEntries = [];
-    await writeToFile([]);
-    setConnectUI('connected', handle.name);
-    startPolling();
-    showToast('File Excel baru berhasil dibuat & dihubungkan.');
-  } catch (e) {
-    if (e.name !== 'AbortError') showToast('Gagal membuat file: ' + e.message, 'error');
-  }
-}
-
-async function requestReconnect() {
-  if (!fileHandle) return;
-  try {
-    const perm = await fileHandle.requestPermission({ mode: 'readwrite' });
-    if (perm === 'granted') {
-      fileConnected = true;
-      await loadFromFile();
-      setConnectUI('connected', fileHandle.name);
-      startPolling();
-    } else {
-      showToast('Izin akses file ditolak.', 'error');
-    }
-  } catch (e) {
-    showToast('Gagal menyambungkan ulang: ' + e.message, 'error');
-  }
-}
-
-async function initFileConnection() {
-  if (!('showOpenFilePicker' in window)) {
-    setConnectUI('not-supported');
-    return;
-  }
-  try {
-    const handle = await idbGet(IDB_HANDLE_KEY);
-    if (!handle) { setConnectUI('disconnected'); return; }
-    fileHandle = handle;
-    const perm = await handle.queryPermission({ mode: 'readwrite' });
-    if (perm === 'granted') {
-      fileConnected = true;
-      await loadFromFile();
-      setConnectUI('connected', handle.name);
-      startPolling();
-    } else {
-      setConnectUI('needs-permission', handle.name);
-    }
-  } catch (e) {
-    setConnectUI('disconnected');
-  }
-}
-
-document.getElementById('btn-open-existing').addEventListener('click', connectExisting);
-document.getElementById('btn-create-new').addEventListener('click', createNewFile);
-document.getElementById('btn-reconnect').addEventListener('click', requestReconnect);
-document.getElementById('btn-change-file').addEventListener('click', async () => {
-  clearInterval(pollTimer);
-  fileConnected = false;
-  fileHandle = null;
-  setConnectUI('disconnected');
+document.getElementById('btn-retry-connect').addEventListener('click', () => {
+  initFirestoreConnection();
 });
 
+async function addEntryToFirestore(entry) {
+  const fb = window.gudangFirebase;
+  await fb.addDoc(fb.laporanCol, entry);
+}
+
+async function updateEntryInFirestore(id, changes) {
+  const fb = window.gudangFirebase;
+  await fb.updateDoc(fb.doc(fb.db, 'laporan', id), changes);
+}
+
+async function deleteEntryFromFirestore(id) {
+  const fb = window.gudangFirebase;
+  await fb.deleteDoc(fb.doc(fb.db, 'laporan', id));
+}
+
+async function clearAllEntriesInFirestore() {
+  const fb = window.gudangFirebase;
+  const snapshot = await fb.getDocs(fb.laporanCol);
+  const batch = fb.writeBatch(fb.db);
+  snapshot.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+}
+
 /* ==========================================================================
-   TOAST
+   TOAST NOTIFICATIONS
 ========================================================================== */
 let toastTimer = null;
 function showToast(message, type = 'success') {
@@ -639,7 +460,7 @@ function showToast(message, type = 'success') {
 }
 
 /* ==========================================================================
-   DATALIST LOKASI GLOBAL (dipakai form edit inline di riwayat)
+   DATALIST LOKASI GLOBAL
 ========================================================================== */
 (function populateLokasiDatalist() {
   const dl = document.getElementById('dl-lokasi');
@@ -654,7 +475,7 @@ function showToast(message, type = 'success') {
 })();
 
 /* ==========================================================================
-   FORM INPUT — HANYA OPERATOR
+   FORM INPUT — OPERATOR ONLY
 ========================================================================== */
 let jenis = 'masuk';
 
@@ -662,6 +483,7 @@ const btnMasuk = document.getElementById('btn-jenis-masuk');
 const btnKeluar = document.getElementById('btn-jenis-keluar');
 btnMasuk.addEventListener('click', () => setJenis('masuk'));
 btnKeluar.addEventListener('click', () => setJenis('keluar'));
+
 function setJenis(j) {
   jenis = j;
   btnMasuk.classList.toggle('is-active', j === 'masuk');
@@ -716,6 +538,7 @@ function showError(msg) {
   formError.hidden = false;
   formError.textContent = msg;
 }
+
 function hideError() {
   formError.hidden = true;
   formError.textContent = '';
@@ -737,7 +560,7 @@ form.addEventListener('submit', async (e) => {
   e.preventDefault();
   hideError();
 
-  if (!fileConnected) return showError('Sistem belum siap menerima laporan. Hubungi admin gudang.');
+  if (!firestoreReady) return showError('Sistem belum siap menerima laporan. Periksa koneksi internet.');
 
   const operator = inputOperator.value.trim();
   const barang = selBarang.getValue();
@@ -759,46 +582,38 @@ form.addEventListener('submit', async (e) => {
   const submitText = document.getElementById('btn-submit-text');
   submitBtn.disabled = true;
   const originalText = submitText.textContent;
-  submitText.textContent = 'MENYIMPAN KE EXCEL...';
+  submitText.textContent = 'MENYIMPAN...';
 
   try {
-    // baca ulang file dulu, supaya tidak menimpa laporan operator lain yang baru masuk
-    const list = await loadFromFile();
     const now = Date.now();
-
-    list.unshift({
-      id: genId(), jenis, tipe: 'transaksi', operator, kodeBarang: barang.kode, namaBarang: barang.nama,
+    await addEntryToFirestore({
+      jenis, tipe: 'transaksi', operator, kodeBarang: barang.kode, namaBarang: barang.nama,
       supplier, pemilik, lokasi, jumlah, keterangan: '', tanggal, createdAt: now, updatedAt: now,
     });
 
-    await writeToFile(list);
-    currentEntries = list;
-
     resetForm();
     inputOperator.value = operator;
-    showToast('Laporan berhasil disimpan ke file Excel.');
+    showToast('Laporan berhasil disimpan.');
   } catch (err) {
-    showError('Gagal menyimpan ke file Excel: ' + err.message);
+    showError('Gagal menyimpan laporan: ' + err.message);
   } finally {
-    submitBtn.disabled = !fileConnected;
+    submitBtn.disabled = !firestoreReady;
     submitText.textContent = originalText;
   }
 });
 
 /* ==========================================================================
-   SESUAIKAN STOK — HANYA ADMIN
-   Dipakai untuk mengisi stok awal, koreksi hasil stock opname, atau
-   memindahkan barang ke lokasi lain. Setiap penyesuaian tercatat sebagai
-   transaksi biasa (masuk/keluar) tapi ditandai tipe = 'penyesuaian' supaya
-   mudah dibedakan di riwayat & di file Excel.
+   PENYESUAIAN STOK — ADMIN ONLY
 ========================================================================== */
 let adjArah = 'tambah';
 const btnAdjTambah = document.getElementById('btn-adj-tambah');
 const btnAdjKurang = document.getElementById('btn-adj-kurang');
+
 if (btnAdjTambah && btnAdjKurang) {
   btnAdjTambah.addEventListener('click', () => setAdjArah('tambah'));
   btnAdjKurang.addEventListener('click', () => setAdjArah('kurang'));
 }
+
 function setAdjArah(a) {
   adjArah = a;
   btnAdjTambah.classList.toggle('is-active', a === 'tambah');
@@ -816,6 +631,7 @@ const selAdjBarang = setupSearchableSelect({
     document.getElementById('adj-kode-value').textContent = o.kode;
   },
 });
+
 const selAdjLokasi = setupSearchableSelect({
   id: 'sel-adj-lokasi',
   options: MASTER_DATA.lokasi,
@@ -829,16 +645,19 @@ const adjTanggal = document.getElementById('adj-tanggal');
 const adjJumlah = document.getElementById('adj-jumlah');
 const adjKeterangan = document.getElementById('adj-keterangan');
 const adjError = document.getElementById('adj-error');
+
 if (adjTanggal) adjTanggal.value = todayISO();
 
 function showAdjError(msg) {
   adjError.hidden = false;
   adjError.textContent = msg;
 }
+
 function hideAdjError() {
   adjError.hidden = true;
   adjError.textContent = '';
 }
+
 function resetAdjForm() {
   selAdjBarang.reset();
   selAdjLokasi.reset();
@@ -855,7 +674,7 @@ if (formPenyesuaian) {
     e.preventDefault();
     hideAdjError();
 
-    if (!fileConnected) return showAdjError('File Excel belum terhubung.');
+    if (!firestoreReady) return showAdjError('Database belum terhubung.');
 
     const barang = selAdjBarang.getValue();
     const lokasi = selAdjLokasi.getValue();
@@ -876,11 +695,9 @@ if (formPenyesuaian) {
 
     try {
       const session = getSession();
-      const list = await loadFromFile();
       const now = Date.now();
 
-      list.unshift({
-        id: genId(),
+      await addEntryToFirestore({
         jenis: adjArah === 'tambah' ? 'masuk' : 'keluar',
         tipe: 'penyesuaian',
         operator: session ? session.nama : 'Admin',
@@ -896,25 +713,19 @@ if (formPenyesuaian) {
         updatedAt: now,
       });
 
-      await writeToFile(list);
-      currentEntries = list;
-
       resetAdjForm();
-      renderAll();
       showToast('Penyesuaian stok berhasil disimpan.');
     } catch (err) {
       showAdjError('Gagal menyimpan penyesuaian: ' + err.message);
     } finally {
-      submitBtn.disabled = !fileConnected;
+      submitBtn.disabled = !firestoreReady;
       submitText.textContent = originalText;
     }
   });
 }
 
 /* ==========================================================================
-   PERIODE LAPORAN — HANYA ADMIN
-   Harian / Mingguan / Bulanan / Semua. Semua ringkasan & riwayat di bawah
-   mengikuti periode yang aktif ini.
+   PERIODE LAPORAN — ADMIN ONLY
 ========================================================================== */
 let periodMode = 'harian';
 let periodDate = todayISO();
@@ -939,7 +750,7 @@ function getPeriodRange(mode, dateISO) {
   }
   return { startISO: null, endISO: null, label: 'Semua Waktu' };
 }
-/** Rentang periode SEBELUMNYA (untuk menghitung tren naik/turun) */
+
 function getPreviousPeriodRange(mode, dateISO) {
   const d = new Date(dateISO + 'T00:00:00');
   if (mode === 'harian') {
@@ -954,8 +765,9 @@ function getPreviousPeriodRange(mode, dateISO) {
     const prev = new Date(d.getFullYear(), d.getMonth() - 1, 1);
     return getPeriodRange('bulanan', isoOfDate(prev));
   }
-  return null; // tidak ada pembanding untuk mode "semua"
+  return null;
 }
+
 function inPeriod(entry, range) {
   if (!range.startISO) return true;
   return entry.tanggal >= range.startISO && entry.tanggal <= range.endISO;
@@ -975,6 +787,7 @@ periodTabsWrap.querySelectorAll('.period-tab').forEach(btn => {
     renderRiwayat();
   });
 });
+
 periodDatePicker.addEventListener('change', () => {
   periodDate = periodDatePicker.value || todayISO();
   renderRingkasan();
@@ -982,7 +795,7 @@ periodDatePicker.addEventListener('change', () => {
 });
 
 /* ==========================================================================
-   RINGKASAN LAPORAN (admin) — mengikuti periode aktif, plus dashboard visual
+   RINGKASAN LAPORAN (admin)
 ========================================================================== */
 const ringkasanDate = document.getElementById('ringkasan-date');
 const statMasukQty = document.getElementById('stat-masuk-qty');
@@ -1029,7 +842,6 @@ function renderRingkasan() {
     statTopOperatorSub.textContent = 'belum ada data';
   }
 
-  /* ---- Kartu "Arus Barang": split bar masuk vs keluar + tren ---- */
   const arusEmpty = document.getElementById('arus-empty');
   const arusSplit = document.getElementById('arus-split');
   const totalArus = masukQty + keluarQty;
@@ -1046,6 +858,7 @@ function renderRingkasan() {
     document.getElementById('arus-pct-masuk').textContent = pctMasuk + '%';
     document.getElementById('arus-pct-keluar').textContent = pctKeluar + '%';
   }
+
   const trendEl = document.getElementById('arus-trend');
   const prevRange = getPreviousPeriodRange(periodMode, periodDate);
   if (!prevRange) {
@@ -1058,13 +871,12 @@ function renderRingkasan() {
     } else {
       trendEl.hidden = false;
       let pct = prevTotal === 0 ? 100 : Math.round(((totalArus - prevTotal) / prevTotal) * 100);
-      if (pct > 0) { trendEl.className = 'vis-trend up'; trendEl.textContent = `▲ ${pct}% vs sebelumnya`; }
-      else if (pct < 0) { trendEl.className = 'vis-trend down'; trendEl.textContent = `▼ ${Math.abs(pct)}% vs sebelumnya`; }
-      else { trendEl.className = 'vis-trend flat'; trendEl.textContent = `= sama dgn sebelumnya`; }
+      if (pct > 0) { trendEl.className = 'vis-trend up'; trendEl.textContent = `▲ ${pct}%`; }
+      else if (pct < 0) { trendEl.className = 'vis-trend down'; trendEl.textContent = `▼ ${Math.abs(pct)}%`; }
+      else { trendEl.className = 'vis-trend flat'; trendEl.textContent = `= sama`; }
     }
   }
 
-  /* ---- Kartu "Barang Terlaris": bar chart horizontal ---- */
   const barangCount = {};
   const barangKode = {};
   currentEntries.forEach(t => {
@@ -1098,7 +910,6 @@ function renderRingkasan() {
     topBarangEmpty.hidden = false;
   }
 
-  /* ---- Kartu "Lokasi Terpadat": bar chart horizontal berdasarkan stok saat ini ---- */
   const locStock = buildLocationStock(currentEntries);
   const topLokasi = locStock.slice().sort((a, b) => b.totalQty - a.totalQty).slice(0, 5);
   const topLokasiList = document.getElementById('top-lokasi-list');
@@ -1127,7 +938,7 @@ function renderRingkasan() {
 }
 
 /* ==========================================================================
-   KATALOG BARANG & STOK (admin) — interaktif, klik satu barang untuk detail
+   KATALOG BARANG & STOK (admin)
 ========================================================================== */
 const katalogList = document.getElementById('katalog-list');
 const katalogEmpty = document.getElementById('katalog-empty');
@@ -1175,10 +986,11 @@ function renderKatalog() {
     katalogList.appendChild(card);
   });
 }
+
 searchKatalog.addEventListener('input', renderKatalog);
 
 /* ==========================================================================
-   STOK PER LOKASI (admin) — interaktif, klik satu lokasi untuk detail
+   STOK PER LOKASI (admin)
 ========================================================================== */
 const lokasiListEl = document.getElementById('lokasi-list');
 const lokasiEmptyEl = document.getElementById('lokasi-empty');
@@ -1204,7 +1016,7 @@ function renderLokasi() {
     return;
   }
   lokasiEmptyEl.hidden = true;
-  lokasiHintEl.textContent = `${all.length} lokasi terisi dari total ${MASTER_DATA.lokasi.length} lokasi rak. Klik salah satu untuk melihat detail.`;
+  lokasiHintEl.textContent = `${all.length} lokasi terisi. Klik salah satu untuk detail.`;
 
   filtered.forEach(l => {
     const preview = l.items.slice(0, 3).map(it => `${escapeHtml(it.nama)} <b>${it.qty}</b>`).join(', ');
@@ -1224,6 +1036,7 @@ function renderLokasi() {
     lokasiListEl.appendChild(card);
   });
 }
+
 if (searchLokasi) searchLokasi.addEventListener('input', renderLokasi);
 
 /* ---- Modal detail lokasi ---- */
@@ -1302,7 +1115,7 @@ function openItemModal(kode) {
       <div class="modal-stat"><span>Total Keluar</span><strong>${item.keluar.toLocaleString('id-ID')}</strong></div>
     </div>
     <div class="modal-section">
-      <h4>Lokasi Penyimpanan (klik untuk lihat detail lokasi)</h4>
+      <h4>Lokasi Penyimpanan</h4>
       ${lokasiList.length
         ? `<div class="lokasi-chips">${lokasiList.map(([lok, qty]) => `<button type="button" class="lokasi-chip" data-lokasi="${escapeHtml(lok)}">${escapeHtml(lok)} <b>${qty}</b></button>`).join('')}</div>`
         : '<p class="muted">Tidak ada stok aktif di lokasi manapun.</p>'}
@@ -1342,7 +1155,7 @@ function openItemModal(kode) {
 }
 
 /* ==========================================================================
-   RIWAYAT (admin) — mengikuti periode aktif + pencarian, bisa diedit
+   RIWAYAT (admin)
 ========================================================================== */
 const riwayatList = document.getElementById('riwayat-list');
 const riwayatEmpty = document.getElementById('riwayat-empty');
@@ -1429,20 +1242,14 @@ function renderRiwayat() {
     });
     card.querySelector('.btn-mini-cancel').addEventListener('click', () => { editPanel.hidden = true; });
     card.querySelector('.btn-mini-save').addEventListener('click', async () => {
-      if (!fileConnected) return showToast('File Excel tidak terhubung.', 'error');
+      if (!firestoreReady) return showToast('Database tidak terhubung.', 'error');
       const newLokasi = card.querySelector('.edit-lokasi').value.trim();
       const newJumlah = parseInt(card.querySelector('.edit-jumlah').value, 10);
       const newKeterangan = card.querySelector('.edit-keterangan').value.trim();
       if (!newLokasi) return showToast('Lokasi tidak boleh kosong.', 'error');
       if (!newJumlah || newJumlah <= 0) return showToast('Jumlah harus lebih dari 0.', 'error');
       try {
-        const list = await loadFromFile();
-        const idx = list.findIndex(x => x.id === t.id);
-        if (idx === -1) return showToast('Data tidak ditemukan (mungkin sudah diubah pihak lain).', 'error');
-        list[idx] = { ...list[idx], lokasi: newLokasi, jumlah: newJumlah, keterangan: newKeterangan, updatedAt: Date.now() };
-        await writeToFile(list);
-        currentEntries = list;
-        renderAll();
+        await updateEntryInFirestore(t.id, { lokasi: newLokasi, jumlah: newJumlah, keterangan: newKeterangan, updatedAt: Date.now() });
         showToast('Laporan berhasil diperbarui.');
       } catch (err) {
         showToast('Gagal menyimpan perubahan: ' + err.message, 'error');
@@ -1450,14 +1257,11 @@ function renderRiwayat() {
     });
 
     card.querySelector('.btn-delete').addEventListener('click', async () => {
-      if (!confirm('Hapus laporan ini dari file Excel?')) return;
-      if (!fileConnected) return showToast('File Excel tidak terhubung.', 'error');
+      if (!confirm('Hapus laporan ini?')) return;
+      if (!firestoreReady) return showToast('Database tidak terhubung.', 'error');
       try {
-        const list = (await loadFromFile()).filter(x => x.id !== t.id);
-        await writeToFile(list);
-        currentEntries = list;
-        renderAll();
-        showToast('Laporan dihapus dari file Excel.');
+        await deleteEntryFromFirestore(t.id);
+        showToast('Laporan dihapus.');
       } catch (err) {
         showToast('Gagal menghapus: ' + err.message, 'error');
       }
@@ -1484,7 +1288,7 @@ document.getElementById('btn-export').addEventListener('click', () => {
   });
   Object.keys(groups).sort().forEach(ym => {
     const list = groups[ym].slice().sort((a, b) => (a.tanggal !== b.tanggal ? (a.tanggal < b.tanggal ? -1 : 1) : a.createdAt - b.createdAt));
-    const label = ym === 'lainnya' ? 'Lainnya' : sheetLabelFromYM(ym);
+    const label = ym === 'lainnya' ? 'Lainnya' : `${BULAN_PANJANG[parseInt(ym.split('-')[1], 10) - 1]} ${ym.split('-')[0]}`;
     XLSX.utils.book_append_sheet(wb, buildMonthSheet(list), safeSheetName(label));
   });
   XLSX.utils.book_append_sheet(wb, buildStokSheet(currentEntries), RINGKASAN_SHEET);
@@ -1495,20 +1299,18 @@ document.getElementById('btn-export').addEventListener('click', () => {
 
 document.getElementById('btn-clear').addEventListener('click', async () => {
   if (currentEntries.length === 0) return;
-  if (!fileConnected) return showToast('File Excel tidak terhubung.', 'error');
-  if (!confirm('Hapus SEMUA laporan di file Excel bersama ini? Tindakan ini tidak bisa dibatalkan.')) return;
+  if (!firestoreReady) return showToast('Database tidak terhubung.', 'error');
+  if (!confirm('Hapus SEMUA laporan di database bersama ini? Tindakan ini tidak bisa dibatalkan.')) return;
   try {
-    await writeToFile([]);
-    currentEntries = [];
-    renderAll();
-    showToast('Semua laporan di file Excel telah dihapus.');
+    await clearAllEntriesInFirestore();
+    showToast('Semua laporan telah dihapus.');
   } catch (err) {
     showToast('Gagal menghapus: ' + err.message, 'error');
   }
 });
 
 /* ==========================================================================
-   START
+   STARTUP
 ========================================================================== */
 (function start() {
   const existing = getSession();
@@ -1519,3 +1321,7 @@ document.getElementById('btn-clear').addEventListener('click', async () => {
     loginOperatorNama.focus();
   }
 })();
+
+window.addEventListener('gudang-firebase-auth-error', () => {
+  setConnectUI('error');
+});
