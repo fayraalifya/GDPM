@@ -12,6 +12,10 @@
 // CATATAN: apiKey di bawah ini AMAN untuk ditampilkan di kode client-side.
 // Keamanan sesungguhnya diatur lewat Firestore Security Rules + Auth,
 // bukan oleh kerahasiaan apiKey ini.
+//
+// TAMBAHAN: koleksi "operator" dipakai untuk menyimpan akun operator
+// (nama + kata sandi) supaya operator harus mendaftar dulu sebelum bisa
+// masuk. Ini dipakai oleh fitur "Daftar Baru" / "Masuk" di layar login.
 // ==========================================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
@@ -46,11 +50,13 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 const LAPORAN_COLLECTION = "laporan";
+const OPERATOR_COLLECTION = "operator";
 
 window.gudangFirebase = {
   db,
   auth,
   laporanCol: collection(db, LAPORAN_COLLECTION),
+  operatorCol: collection(db, OPERATOR_COLLECTION),
   collection,
   addDoc,
   updateDoc,

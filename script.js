@@ -154,24 +154,39 @@ function clearSession() {
 }
 
 /* ---- UI Elements ---- */
-const loginScreen = document.getElementById('login-screen');
-const appScreen = document.getElementById('app-screen');
-const tabOperator = document.getElementById('tab-operator');
-const tabAdmin = document.getElementById('tab-admin');
-const formLoginOperator = document.getElementById('form-login-operator');
-const formLoginAdmin = document.getElementById('form-login-admin');
-const loginOperatorNama = document.getElementById('login-operator-nama');
-const loginAdminPassword = document.getElementById('login-admin-password');
-const loginError = document.getElementById('login-error');
-const rolePill = document.getElementById('role-pill');
-const userNameLabel = document.getElementById('user-name-label');
+const operatorModeTabs = document.getElementById('operator-mode-tabs');
+const tabOperatorLogin = document.getElementById('tab-operator-login');
+const tabOperatorRegister = document.getElementById('tab-operator-register');
+const formRegisterOperator = document.getElementById('form-register-operator');
+const loginOperatorPassword = document.getElementById('login-operator-password');
+const loginOperatorError = document.getElementById('login-operator-error');
+const registerOperatorError = document.getElementById('register-operator-error');
+
+function switchOperatorMode(mode) {
+  tabOperatorLogin.classList.toggle('is-active', mode === 'login');
+  tabOperatorRegister.classList.toggle('is-active', mode === 'register');
+  formLoginOperator.hidden = mode !== 'login';
+  formRegisterOperator.hidden = mode !== 'register';
+  loginOperatorError.hidden = true;
+  registerOperatorError.hidden = true;
+}
+tabOperatorLogin.addEventListener('click', () => switchOperatorMode('login'));
+tabOperatorRegister.addEventListener('click', () => switchOperatorMode('register'));
 
 function switchLoginTab(role) {
   tabOperator.classList.toggle('is-active', role === 'operator');
   tabAdmin.classList.toggle('is-active', role === 'admin');
-  formLoginOperator.hidden = role !== 'operator';
   formLoginAdmin.hidden = role !== 'admin';
   loginError.hidden = true;
+
+  if (role === 'operator') {
+    operatorModeTabs.hidden = false;
+    switchOperatorMode('login');
+  } else {
+    operatorModeTabs.hidden = true;
+    formLoginOperator.hidden = true;
+    formRegisterOperator.hidden = true;
+  }
 }
 
 tabOperator.addEventListener('click', () => switchLoginTab('operator'));
